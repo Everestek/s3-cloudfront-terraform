@@ -3,7 +3,7 @@ provider "aws" {
   profile = var.aws_profile
 }
 
-resource "aws_s3_bucket" "deploy_bucket" {
+resource "aws_s3_bucket" "deployment_bucket" {
   bucket = var.bucket_name
 
   website {
@@ -19,7 +19,7 @@ resource "aws_s3_bucket" "deploy_bucket" {
 }
 
 resource "aws_s3_bucket_ownership_controls" "ownership_controls" {
-  bucket = aws_s3_bucket.deploy_bucket.id
+  bucket = aws_s3_bucket.deployment_bucket.id
   rule {
     object_ownership = var.object_ownership
   }
@@ -28,7 +28,7 @@ resource "aws_s3_bucket_ownership_controls" "ownership_controls" {
 
 resource "aws_s3_bucket_acl" "s3_bucket_acl" {
   depends_on = [aws_s3_bucket_ownership_controls.ownership_controls]
-  bucket     = aws_s3_bucket.deploy_bucket.id
+  bucket     = aws_s3_bucket.deployment_bucket.id
   acl        = "private"
 }
 
@@ -47,9 +47,9 @@ resource "aws_cloudfront_distribution" "website_cdn" {
   enabled = true
 
   origin {
-    domain_name              = aws_s3_bucket.deploy_bucket.bucket_regional_domain_name
+    domain_name              = aws_s3_bucket.deployment_bucket.bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.cloudfront_oac.id
-    origin_id                = "origin-bucket-${aws_s3_bucket.deploy_bucket.id}"
+    origin_id                = "origin-bucket-${aws_s3_bucket.deployment_bucket.id}"
 
   }
 
@@ -61,7 +61,7 @@ resource "aws_cloudfront_distribution" "website_cdn" {
     min_ttl                = "0"
     default_ttl            = "300"
     max_ttl                = "1200"
-    target_origin_id       = "origin-bucket-${aws_s3_bucket.deploy_bucket.id}"
+    target_origin_id       = "origin-bucket-${aws_s3_bucket.deployment_bucket.id}"
     viewer_protocol_policy = "redirect-to-https"
     compress               = true
 
@@ -91,7 +91,7 @@ resource "aws_cloudfront_distribution" "website_cdn" {
 }
 
 resource "aws_s3_bucket_policy" "bucket_policy" {
-  bucket = aws_s3_bucket.deploy_bucket.id
+  bucket = aws_s3_bucket.deployment_bucket.id
   policy = jsonencode({
     "Version" : "2012-10-17",
     "Statement" : [
@@ -102,7 +102,7 @@ resource "aws_s3_bucket_policy" "bucket_policy" {
           "Service" : "cloudfront.amazonaws.com"
         },
         "Action" : "s3:GetObject",
-        "Resource" : "${aws_s3_bucket.deploy_bucket.arn}/*",
+        "Resource" : "${aws_s3_bucket.deployment_bucket.arn}/*",
         "Condition" : {
           "StringEquals" : {
             "AWS:SourceArn" : "${aws_cloudfront_distribution.website_cdn.arn}"
